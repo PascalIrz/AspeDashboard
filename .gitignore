@@ -28,3 +28,5 @@ data-raw/PreparationDonnees.rmarkdown
 dropbox_token.rds
 
 inst/app/www/style.css
+
+logs/

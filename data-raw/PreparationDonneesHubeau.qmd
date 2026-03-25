@@ -8,8 +8,8 @@ format: gfm
 if (!require("pak")) install.packages("pak")
 
 pak::pkg_install(c(
-    "CedricMondy/AspeDashboard",
-    "PascalIrz/aspe",
+    "PascalIrz/aspe", "karthik/rdrop2", "OFB-IdF/templatesOFB",
+    "OFB-IdF/AspeDashboard",
     "MaelTheuliere/COGiter",
     "httr", "sf", "rmapshaper", "dplyr", "purrr", "usethis", "stringr", "progress", "lubridate", "tidyr", "hubeau",
     "ggplot2", "cowplot", "ggiraph", "leaflet", "ows4R"
@@ -111,7 +111,7 @@ Les données utilisées sont celles mises à disposition par l'API "poissons" de
 
 
 ```{r}
-get_data_poissons <- function(endpoint, stations = NULL, ..., ntry_max = 25) {
+get_data_poissons <- function(endpoint, stations = NULL, ..., ntry_max = 99) {
   cat("\n#", endpoint, file = "log")
     fn <- get(paste0("get_poisson_", endpoint), envir = asNamespace("hubeau"))
     
@@ -147,10 +147,10 @@ get_data_poissons <- function(endpoint, stations = NULL, ..., ntry_max = 25) {
                     cat("\n    operation ", op, file = "log", append = TRUE)
                     n_try = 1
                     
-                    results_op <- try({fn(code_operation = op)})
+                    results_op <- try({fn(code_operation = op, ...)})
                     
                     while (inherits(results_op, "try-error") & n_try < ntry_max) {
-                      results_op <- try({fn(code_operation = op)})
+                      results_op <- try({fn(code_operation = op, ...)})
                       n_try = n_try + 1
                       }
                     
@@ -195,14 +195,16 @@ if (download_hubeau) {
       endpoint = "operations",
       date_modification_operation_min = date_export, code_departement = dept_test,
       fields = "code_operation,code_station,date_operation,code_point_prelevement_aspe,libelle_station,protocole_peche,surface_calculee,coordonnee_x_point_prelevement,coordonnee_y_point_prelevement,code_epsg_projection_point_prelevement,libelle_qualification_operation"
-      )
+      ) |>
+        dplyr::distinct()
   } else {
     date_export <- Sys.Date()
     new_operations <- get_data_poissons(
       endpoint = "operations", 
       code_departement = dept_test,
       fields = "code_operation,code_station,date_operation,code_point_prelevement_aspe,libelle_station,protocole_peche,surface_calculee,coordonnee_x_point_prelevement,coordonnee_y_point_prelevement,code_epsg_projection_point_prelevement,libelle_qualification_operation"
-      )
+      ) |>
+        dplyr::distinct()
   }
   
   if (nrow(new_operations) > 0) {
@@ -222,22 +224,25 @@ if (download_hubeau) {
     code_departement = dept_test,
     fields = "code_station,libelle_station"
     ) |>
-      dplyr::filter(code_station %in% new_operations$code_station)
+      dplyr::filter(code_station %in% new_operations$code_station) |>
+      dplyr::distinct()
   
   new_indicateurs <- get_data_poissons(
     endpoint = "indicateurs", 
     stations = unique(new_operations$code_station), 
     code_departement = dept_test,
     fields = "code_operation,code_station,libelle_station,code_point_prelevement_aspe,date_operation,ipr_note,ipr_libelle_classe,ipr_altitude,code_departement,ipr_nte,ipr_ner,ipr_nel,ipr_dit,ipr_dii,ipr_dio,ipr_dti"
-    )
+    ) |>
+      dplyr::distinct()
   
   new_observations <- get_data_poissons(
     endpoint = "observations",
     stations = unique(new_operations$code_station), 
     code_departement = dept_test,
-    fields = "code_operation,code_alternatif_taxon,effectif_lot"
+    fields = "code_operation,code_alternatif_taxon,code_lot,effectif_lot"
     ) |>
-      dplyr::filter(!is.na(code_alternatif_taxon))
+      dplyr::filter(!is.na(code_alternatif_taxon)) |>
+      dplyr::distinct()
   
   if (exists("operations")) {
     stations <- stations |> 
