@@ -1,11 +1,14 @@
 Package: AspeDashboard
-Title: Tableau de bord ASPE
+Title: Tableau de Bord Interactif pour l'Exploitation des Données ASPE
 Version: 0.0.0.9000
 Authors@R: 
     person("Cédric", "MONDY", , "cedric.mondy@ofb.gouv.fr", role = c("cre", "aut"))
-Description: Tableau de bord interactif permettant d'explorer les données
-    de pêche contenues dans la base de données ASPE.
-License: MIT + file LICENSE
+Description: Ce package fournit une application Shiny développée avec le
+    framework {golem} pour visualiser et analyser les données de pêche
+    électrique issues de la base de données ASPE.
+License: Open Licence 2.0
+URL: https://github.com/CedricMondy/AspeDashboard
+BugReports: https://github.com/CedricMondy/AspeDashboard/issues
 Depends: 
     R (>= 2.10)
 Imports: 
