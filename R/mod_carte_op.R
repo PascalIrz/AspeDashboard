@@ -53,6 +53,33 @@ mod_carte_op_ui <- function(id){
                    border-radius: 5px;
                    overflow: hidden !important;
               }
+
+              .loader {
+                  border: 5px solid #f3f3f3;
+                  border-top: 5px solid #3498db;
+                  border-radius: 50%;
+                  width: 50px;
+                  height: 50px;
+                  animation: spin 2s linear infinite;
+                  display: block;
+                  margin: 20px auto;
+              }
+
+              @keyframes spin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+              }
+
+              .loading-container {
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                  height: 100%;
+                  width: 100%;
+                  background-color: white;
+                  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              }
           "
       )
   )
@@ -361,29 +388,50 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
         }
         
         # Cas (ii) : Mise à jour du contenu pour "especes" ou "ipr"
-        # Affichage d'un indicateur de chargement
-        shiny::showNotification("Génération du graphique...", duration = 2, type = "message", id = "popup_loading")
+        # Affichage d'un indicateur de chargement immédiat dans le popup
+        coords <- SelectionPoint$markerCoords
+        loading_content <- paste0(
+            "<div class='loading-container'>",
+            "<div class='loader'></div>",
+            "<div style='color: #333; font-weight: bold;'>Graphique en cours de création...</div>",
+            "</div>"
+        )
         
-        content <- generer_contenu_popup(pop_id_sel, sel_var)
-        
-        if (!is.null(content)) {
-            coords <- SelectionPoint$markerCoords
-            proxy |> 
-                leaflet::clearPopups() |> 
-                leaflet::addPopups(
-                    lng = coords$lng, 
-                    lat = coords$lat, 
-                    popup = content,
-                    options = leaflet::popupOptions(
-                        minWidth = 341, 
-                        maxWidth = 341, 
-                        maxHeight = 500,
-                        className = "custom-popup"
-                    )
+        proxy |> 
+            leaflet::clearPopups() |> 
+            leaflet::addPopups(
+                lng = coords$lng, 
+                lat = coords$lat, 
+                popup = loading_content,
+                options = leaflet::popupOptions(
+                    minWidth = 341, 
+                    maxWidth = 341, 
+                    maxHeight = 500, # On ajuste sur la hauteur du popup final
+                    className = "custom-popup"
                 )
-        }
+            )
         
-        shiny::removeNotification("popup_loading")
+        # On utilise shiny::onFlushed pour s'assurer que le popup de chargement 
+        # est bien envoyé au navigateur avant de commencer le calcul lourd
+        session$onFlushed(function() {
+            content <- generer_contenu_popup(pop_id_sel, sel_var)
+            
+            if (!is.null(content)) {
+                proxy |> 
+                    leaflet::clearPopups() |> 
+                    leaflet::addPopups(
+                        lng = coords$lng, 
+                        lat = coords$lat, 
+                        popup = content,
+                        options = leaflet::popupOptions(
+                            minWidth = 341, 
+                            maxWidth = 341, 
+                            maxHeight = 500,
+                            className = "custom-popup"
+                        )
+                    )
+            }
+        }, once = TRUE)
     }, ignoreInit = TRUE, ignoreNULL = FALSE)
 
 
