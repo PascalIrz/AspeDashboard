@@ -10,7 +10,7 @@ License: Open Licence 2.0
 URL: https://github.com/CedricMondy/AspeDashboard
 BugReports: https://github.com/CedricMondy/AspeDashboard/issues
 Depends: 
-    R (>= 2.10)
+    R (>= 3.5)
 Imports: 
     arrow,
     aspe,
@@ -18,6 +18,7 @@ Imports:
     dplyr,
     ggiraph,
     ggplot2,
+    ggtext,
     golem (>= 0.3.1),
     htmlwidgets,
     knitr,

@@ -13,7 +13,7 @@ popup_peuplement <- function(df_captures, pop_id_sel, pop_libelle_sel) {
   largeur_base <- 3.7
   hauteur_base <- 4.6
   
-  p <- aspe::gg_temp_peuplement(
+  p <- gg_temp_peuplement_local(
     df = df_captures,
     var_id_sta = pop_id,
     var_libelle_sta = pop_libelle,
@@ -77,7 +77,7 @@ popup_ipr <- function(df_ipr, pop_id_sel, pop_libelle_sel, classe_ipr) {
   largeur_base <- 3.7
   hauteur_base <- 4.6
   
-  p <- aspe::gg_temp_ipr(
+  p <- gg_temp_ipr_local(
     df_ipr = df_ipr,
     var_ipr = ipr,
     var_id_sta = pop_libelle,
