@@ -38,7 +38,7 @@ mod_graphes_metriques_server <- function(id, variable, point, departement, bassi
     ns <- session$ns
     
     output$graphe <- renderPlot({
-        req(variable, point, bassin, departement, espece)
+        req(variable, point, bassin, departement)
         
         sel_var <- variable()
         sel_point <- point()
@@ -48,6 +48,9 @@ mod_graphes_metriques_server <- function(id, variable, point, departement, bassi
         min_per <- min(sel_per)
         max_per <- max(sel_per)
         sel_esp <- espece()
+
+        # Si variable "distribution", l'espèce est requise
+        if (sel_var == "distribution") req(sel_esp != "")
         
         if (sel_var != "distribution") {
             if (!is.null(sel_point)) {

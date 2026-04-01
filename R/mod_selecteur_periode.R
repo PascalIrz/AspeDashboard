@@ -43,13 +43,13 @@ mod_selecteur_periode_ui <- function(id){
 #'
 #' @noRd 
 #' @importFrom dplyr filter select collect
-#' @importFrom shiny moduleServer observe req updateSliderInput reactive renderUI sliderInput
+#' @importFrom shiny moduleServer observeEvent req updateSliderInput reactive renderUI sliderInput
 mod_selecteur_periode_server <- function(id, bassin, departement){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
     
-    observe({
-        req(bassin, departement, input$periode)
+    observeEvent(list(bassin(), departement()), {
+        req(bassin, departement)
         
         sel_bassin <- bassin()
         sel_dept <- departement()

@@ -102,254 +102,172 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
     
     SelectionPoint <- reactiveValues(clickedMarker=NULL)
     
-     radius_pal <- function(x) {
-        # On utilise une valeur fixe pour la range si on veut éviter de scanner tout le parquet
-        # ou on le fait une fois au démarrage
-        approx(
-            x = c(1, 10), # Valeurs par défaut raisonnables pour nb_annees
-            y = c(3, 10),
-            xout = sqrt(x),
-            yleft = 3,
-            yright = 10
-        )$y
-     }
+    radius_pal <- function(x) {
+        approx(x = c(1, 10), y = c(3, 10), xout = sqrt(x), yleft = 3, yright = 10)$y
+    }
      
-   BboxMap <- list(xmin = -5.1, ymin = 41.3, xmax = 9.6, ymax = 51.1) # Bbox France approximative
+    BboxMap <- list(xmin = -5.1, ymin = 41.3, xmax = 9.6, ymax = 51.1)
 
-   output$carte_op <- leaflet::renderLeaflet(
+    output$carte_op <- leaflet::renderLeaflet({
         leaflet::leaflet() |>  
             leaflet::addTiles() |> 
-        leaflet::fitBounds(
-            lng1 = BboxMap[["xmin"]],
-            lat1 = BboxMap[["ymin"]],
-            lng2 = BboxMap[["xmax"]],
-            lat2 = BboxMap[["ymax"]]
-        )
-    )
+            leaflet::fitBounds(BboxMap$xmin, BboxMap$ymin, BboxMap$xmax, BboxMap$ymax)
+    })
 
     output$legende <- renderPlot({
-        req(variable)
+        req(variable())
+        switch(variable(),
+               especes = LegendeEspeces,
+               ipr = LegendeIpr,
+               distribution = LegendeDistribution)
+    })
+
+    # 1. Emprise géographique (Variables locales pour Arrow)
+    MapEmprise_r <- reactive({
+        req(departement(), bassin())
+        sel_dept <- departement()
+        sel_bassin <- bassin()
         
-        switch(
-            variable(),
-            especes = LegendeEspeces,
-            ipr = LegendeIpr,
-            distribution = LegendeDistribution
-        )
-    }
-    )
-    
-    observe({
-        req(departement, bassin, periode, variable, espece)
+        res <- pop_geo_df |> 
+            dplyr::filter(dept_id %in% sel_dept, dh_libelle %in% sel_bassin) |> 
+            dplyr::collect() |> 
+            sf::st_as_sf(coords = c("x", "y"), crs = 4326)
+        gc() 
+        res
+    })
+
+    # 2. Données de la carte (Calcul des filtres HORS du pipeline Arrow)
+    DataMap_r <- reactive({
+        req(MapEmprise_r(), periode(), variable())
         
+        # Extraction des réactifs en variables locales
         sel_dept <- departement()
         sel_bassin <- bassin()
         sel_per <- periode()
-        min_per <- min(sel_per)
-        max_per <- max(sel_per)
         sel_var <- variable()
         sel_esp <- espece()
-        
-        ChoixEspece <- ifelse(
-            sel_var != "distribution" | is.null(sel_esp), "", sel_esp
-        )
 
-        MapEmprise <- pop_geo_df |> 
+        # Si variable "distribution", l'espèce est requise
+        if (sel_var == "distribution") req(sel_esp != "")
+        
+        # Calcul des bornes temporelles en R (Correction de l'erreur Arrow)
+        min_p <- as.integer(min(sel_per))
+        max_p <- as.integer(max(sel_per))
+
+        # Pipeline Arrow optimisé
+        query <- carte_operations |> 
             dplyr::filter(
-                dept_id %in% sel_dept,
-                dh_libelle %in% sel_bassin
-            ) |> 
-            dplyr::collect() |> 
-            sf::st_as_sf(coords = c("x", "y"), crs = 4326)
-        
-        DataMap <- dplyr::inner_join(
-                MapEmprise |> 
-                    dplyr::select(pop_id),
-                carte_operations |> 
-                  dplyr::filter(
-                    dept_id %in% sel_dept,
-                    dh_libelle %in% sel_bassin,
-                    variable == sel_var,
-                    annee >= min_per,
-                    annee <= max_per
-                  ) |> 
-                  dplyr::collect() |> 
-                  dplyr::mutate(
-                    esp_code_alternatif = stringr::str_replace_na(
-                      esp_code_alternatif, ""
-                    )
-                  ) |> 
-                  dplyr::filter(esp_code_alternatif == ChoixEspece) |> 
-                  dplyr::group_by(pop_id) |> 
-                  dplyr::mutate(
-                    afficher = dplyr::case_when(
-                      variable != "distribution" ~ TRUE,
-                      variable == "distribution" &
-                        sum(effectif)>0 ~ TRUE,
-                      variable == "distribution" &
-                        sum(effectif) == 0 ~ FALSE
-                    )
-                  ) |> 
-                  dplyr::filter(
-                    afficher,
-                    annee == max(annee[afficher])
-                  ) |> 
-                  dplyr::ungroup(),
-                by = "pop_id"
-            ) |>
-            dplyr::mutate(
-                hover = paste0(
-                    "<b>", sta_libelle_sandre, " (", sta_code_sandre, ")</b><br>",
-                    "<em>", dept_libelle, " (", reg_libelle, ")</em><br>",
-                    nb_annees, " année",
-                    ifelse(as.numeric(nb_annees) > 1 , "s", ""),
-                    ifelse(variable == "distribution",
-                           paste0(" de détection (sur ", nb_annees_tot, ")"),
-                           " de suivi"
-                           ),
-                    "<br>",
-                    dplyr::case_when(
-                        variable == "especes" ~ paste0(
-                            valeur, " espèce",
-                            ifelse(as.numeric(valeur) > 1, "s", "")
-                            ),
-                        variable == "ipr" ~ paste0(valeur, " état"),
-                        variable == "distribution" ~ paste0("Densité moyenne quand capturée: ", valeur)
-                        ),
-                    ifelse(variable == "distribution", "",
-                           paste0(" (", annee, ")")
-                           )
-                    )
+                dept_id %in% sel_dept, 
+                dh_libelle %in% sel_bassin,
+                variable == sel_var,
+                annee >= min_p, 
+                annee <= max_p
             )
+        
+        # Filtrage spécifique à la distribution (Species filter)
+        if (sel_var == "distribution" && !is.null(sel_esp)) {
+            query <- query |> dplyr::filter(esp_code_alternatif == sel_esp)
+        }
 
-        updateSelectizeInput(
-            session = session,
-            inputId = "station",
-            choices = c(
-                "Localiser un point de prélèvement" = "",
-                MapEmprise |> 
-                    sf::st_drop_geometry() |> 
-                    dplyr::distinct(pop_libelle) |> 
-                    dplyr::arrange(pop_libelle) |> 
-                    dplyr::pull(pop_libelle)
-            ),
-            server = TRUE
-        )
-        
-        BboxMap <- sf::st_bbox(MapEmprise)
-        
-        leaflet::leafletProxy("carte_op") |>
-            leaflet::fitBounds(
-                lng1 = BboxMap[["xmin"]],
-                lat1 = BboxMap[["ymin"]],
-                lng2 = BboxMap[["xmax"]],
-                lat2 = BboxMap[["ymax"]]
-            )
+        data_filtered <- query |> dplyr::collect()
+        gc() 
+            
+        if (is.null(data_filtered) || nrow(data_filtered) == 0) return(NULL)
 
-        popups <- switch(
-            variable(),
-            especes = paste0(
-                '<iframe src="www/widgets/especes/file_', DataMap$pop_id, '.html" ',
-                'width="419px" height="538px" frameborder="0"></iframe>'
+        # Traitement post-collect (R standard)
+        data_processed <- data_filtered |>
+            dplyr::group_by(pop_id) |> 
+            dplyr::mutate(afficher = dplyr::case_when(
+                sel_var != "distribution" ~ TRUE,
+                sel_var == "distribution" & sum(effectif, na.rm = TRUE) > 0 ~ TRUE,
+                sel_var == "distribution" & sum(effectif, na.rm = TRUE) == 0 ~ FALSE
+            )) |> 
+            dplyr::filter(afficher, annee == max(annee[afficher])) |> 
+            dplyr::ungroup()
+
+        if (nrow(data_processed) == 0) return(NULL)
+
+        # Jointure finale avec les géométries
+        dplyr::inner_join(
+            MapEmprise_r() |> dplyr::select(pop_id),
+            data_processed,
+            by = "pop_id"
+        ) |>
+        dplyr::mutate(hover = paste0(
+            "<b>", sta_libelle_sandre, " (", sta_code_sandre, ")</b><br>",
+            "<em>", dept_libelle, " (", reg_libelle, ")</em><br>",
+            nb_annees, " année", ifelse(as.numeric(nb_annees) > 1 , "s", ""),
+            ifelse(sel_var == "distribution", " de détection", " de suivi"),
+            "<br>",
+            dplyr::case_when(
+                sel_var == "especes" ~ paste0(valeur, " espèce", ifelse(as.numeric(valeur) > 1, "s", "")),
+                sel_var == "ipr" ~ paste0(valeur, " état"),
+                sel_var == "distribution" ~ paste0("Densité moyenne: ", valeur)
             ),
-            ipr = paste0(
-                '<iframe src="www/widgets/ipr/file_', DataMap$pop_id, '.html" ',
-                'width="419px" height="538px" frameborder="0"></iframe>'
-            ),
-            distribution = NULL
-        )
+            ifelse(sel_var == "distribution", "", paste0(" (", annee, ")"))
+        ))
+    })
+
+    # 3. Popups 
+    Popups_r <- reactive({
+        req(DataMap_r(), variable())
+        data <- DataMap_r()
+        sel_var <- variable()
+        if (sel_var == "distribution") return(NULL)
         
-        if (nrow(DataMap) == 0) {
-            SelectionPoint$clickedMarker <- NULL
-            
-            leaflet::leafletProxy("carte_op") |>
-                leaflet::clearMarkers()
-        } else {
-            
-            leaflet::leafletProxy("carte_op") |>
-            leaflet::clearMarkers() |>
-            leaflet::addCircleMarkers(
-                data = DataMap,
-                layerId = ~pop_id,
-                radius = ~radius_pal(nb_annees),
-                fillColor = ~identity(couleur),
-                stroke = TRUE,
-                color = "black",
-                weight = 2,
-                opacity = ~identity(opacite),
-                fillOpacity = .75,
-                label = ~lapply(hover, shiny::HTML),
-                popup = popups,
-                popupOptions = leaflet::popupOptions(
-                    maxWidth = 400,
-                    minWidth = 300
-                )
+        paste0('<iframe src="www/widgets/', sel_var, '/file_', data$pop_id, '.html" ',
+               'width="419px" height="538px" frameborder="0"></iframe>')
+    })
+
+    # Mise à jour de la carte (Markers)
+    observe({
+        data <- DataMap_r()
+        popups <- Popups_r()
+        proxy <- leaflet::leafletProxy("carte_op") |> leaflet::clearMarkers()
+        
+        if (!is.null(data) && nrow(data) > 0) {
+            proxy |> leaflet::addCircleMarkers(
+                data = data, layerId = ~pop_id, radius = ~radius_pal(nb_annees),
+                fillColor = ~identity(couleur), stroke = TRUE, color = "black", weight = 2,
+                opacity = ~identity(opacite), fillOpacity = .75,
+                label = ~lapply(hover, shiny::HTML), popup = popups,
+                popupOptions = leaflet::popupOptions(maxWidth = 400, minWidth = 300)
             ) 
         }
-        
-        observe({
+    })
 
-            if (input$station != "") {
-                sel_station <- input$station
-
-                CoordsStation <- pop_geo_df |> 
-                    dplyr::filter(pop_libelle == sel_station) |> 
-                    dplyr::collect() |> 
-                    sf::st_as_sf(coords = c("x", "y"), crs = 4326) |> 
-                    sf::st_centroid() |> 
-                    sf::st_coordinates()
-                
-                CoordsStationX <- unname(CoordsStation[,"X"])
-                CoordsStationY <- unname(CoordsStation[,"Y"])
-                
-            leaflet::leafletProxy("carte_op") |> 
-                leaflet::setView(
-                    lng = CoordsStationX,
-                    lat = CoordsStationY,
-                    zoom = 15
-                )
-            } 
+    # Zoom & Emprise
+    observeEvent(MapEmprise_r(), {
+        req(MapEmprise_r())
+        bbox <- sf::st_bbox(MapEmprise_r())
+        leaflet::leafletProxy("carte_op") |>
+            leaflet::fitBounds(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]])
             
-        })
+        updateSelectizeInput(session, "station", server = TRUE,
+            choices = c("Localiser un point" = "", 
+                        MapEmprise_r() |> sf::st_drop_geometry() |> 
+                        dplyr::distinct(pop_libelle) |> dplyr::arrange(pop_libelle) |> 
+                        dplyr::pull(pop_libelle)))
+    })
+
+    observeEvent(input$station, {
+        req(input$station != "")
+        sel_station <- input$station
+        coords <- pop_geo_df |> dplyr::filter(pop_libelle == sel_station) |> 
+                  dplyr::collect() |> sf::st_as_sf(coords = c("x", "y"), crs = 4326) |> 
+                  sf::st_centroid() |> sf::st_coordinates()
+        gc()
+        leaflet::leafletProxy("carte_op") |> 
+            leaflet::setView(lng = coords[,"X"], lat = coords[,"Y"], zoom = 15)
     })
     
-    # observe the marker click info and print to console when it is changed.
-    observeEvent(input$carte_op_marker_click,{
-        SelectionPoint$clickedMarker <- input$carte_op_marker_click$id
-        # update
-    })
+    observeEvent(input$carte_op_marker_click, { SelectionPoint$clickedMarker <- input$carte_op_marker_click$id })
+    observeEvent(input$reset, { SelectionPoint$clickedMarker <- NULL; updateSelectizeInput(session, "station", selected = "") })
     
-    observeEvent(input$reset, {
-        SelectionPoint$clickedMarker <- NULL
-        sel_dept <- departement()
-        sel_bassin <- bassin()
-        
-        updateSelectizeInput(
-            session = session,
-            inputId = "station",
-            choices = c(
-                "Localiser un point de prélèvement" = "",
-                pop_geo_df |> 
-                    dplyr::filter(
-                        dept_id %in% sel_dept,
-                        dh_libelle %in% sel_bassin
-                    ) |> 
-                    dplyr::collect() |> 
-                    dplyr::distinct(pop_libelle) |> 
-                    dplyr::arrange(pop_libelle) |> 
-                    dplyr::pull(pop_libelle)
-            ),
-            server = TRUE
-        )
-        
-    })
-    
-    reactive({
-        SelectionPoint$clickedMarker
-        })
+    reactive({ SelectionPoint$clickedMarker })
   })
 }
-    
+
 ## To be copied in the UI
 # mod_carte_op_ui("carte_op_ui_1")
     
