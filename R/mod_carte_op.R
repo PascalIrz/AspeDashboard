@@ -462,7 +462,7 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
                   sf::st_centroid() |> sf::st_coordinates()
         gc()
         leaflet::leafletProxy("carte_op") |> 
-            leaflet::setView(lng = coords[,"X"], lat = coords[,"Y"], zoom = 15)
+            leaflet::setView(lng = unname(coords[,"X"]), lat = unname(coords[,"Y"]), zoom = 15)
     })
     
     observeEvent(input$reset, { 

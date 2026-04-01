@@ -162,7 +162,7 @@ gg_temp_peuplement_local <- function(df,
         data = df_protocole,
         aes(x = annee, fill = Protocole)
       ) +
-      ggplot2::geom_line(y = 0.5,group=0,alpha=0.5,lty=1,size=0.2) +
+      ggplot2::geom_line(y = 0.5,group=0,alpha=0.5,lty=1,linewidth =0.2) +
       ggiraph::geom_point_interactive(
         ggplot2::aes(x = annee, tooltip = hover2, group=annee, fill = Protocole, shape = Protocole),
         y = 0.5,
@@ -419,7 +419,7 @@ gg_temp_ipr_local <- function(df_ipr,
           axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
           panel.grid.minor = ggplot2::element_blank(),
           panel.grid.major.x = ggplot2::element_blank(),
-          panel.grid.major.y = ggplot2::element_line(color = "lightgrey", size = .25),
+          panel.grid.major.y = ggplot2::element_line(color = "lightgrey", linewidth = .25),
           panel.background = ggplot2::element_blank(),
           strip.background = ggplot2::element_blank())
   # orientation de l'axe des IPR selon l'argument inv_y
