@@ -102,6 +102,8 @@ administratif <- COGiter::departements |>
 # )
 
 library(aspe)
+classe_ipr <- aspe::classe_ipr |>
+    aspe::ip_completer_classes_couleur()
 
 usethis::use_data(
     administratif,
