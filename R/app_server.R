@@ -85,9 +85,4 @@ app_server <- function( input, output, session ) {
     
     output$date_export <- renderText(paste0("Export: ", as.character(date_export)))
 
-    # onSessionEnded(fun = function() {
-    #     unlink("inst/app/www/widgets/especes", recursive = TRUE)
-    #     unlink("inst/app/www/widgets/ipr", recursive = TRUE)
-    # })
-    
 }
