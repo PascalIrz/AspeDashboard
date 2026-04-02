@@ -17,7 +17,7 @@ pak::pkg_install(c(
 ```
 
 ```{r}
-library(aspe)
+# library(aspe)
 
 download_sandre <- FALSE
 download_hubeau <- FALSE

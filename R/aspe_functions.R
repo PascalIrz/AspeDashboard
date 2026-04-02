@@ -91,15 +91,6 @@ gg_temp_peuplement_local <- function(df,
       stats::na.omit() |>
       stringr::str_wrap(longueur_libelle)
 
-
-    df_protocole <-
-      df_pop |>
-      dplyr::select(annee, !!var_libelle_sta, pro_libelle) |>
-      unique() |>
-      dplyr::mutate(Protocole = stringr::str_wrap(pro_libelle, 15)) |>
-      dplyr::mutate(hover2 = paste0("<b>", annee, "</b><br>", pro_libelle))
-
-
     gg_peuplement <-
       ggplot2::ggplot(
         data = df_pop,
@@ -139,7 +130,7 @@ gg_temp_peuplement_local <- function(df,
         axis.text.y = ggplot2::element_text(size = 8),
         panel.background = ggplot2::element_blank(),
         panel.grid.major.y = ggplot2::element_line(colour = "grey75", linewidth = .25, linetype = "dotted"),
-        #strip.text = element_text(size = 11,color="white",face = "bold"),
+        #strip.text = ggplot2::element_text(size = 11,color="white",face = "bold"),
         strip.background = ggplot2::element_rect(color = "black", fill = "grey30"),
         legend.position = 'none',
         legend.text = ggplot2::element_text(size = 8),
@@ -158,10 +149,17 @@ gg_temp_peuplement_local <- function(df,
       gg_peuplement +
       ggplot2::theme(axis.text.y = ggtext::element_markdown(face = manual_font,size = 8))
 
+    df_protocole <-
+      df_pop |>
+      dplyr::select(annee, !!var_libelle_sta, pro_libelle) |>
+      unique() |>
+      dplyr::mutate(Protocole = stringr::str_wrap(pro_libelle, 15)) |>
+      dplyr::mutate(hover2 = paste0("<b>", annee, "</b><br>", pro_libelle))
+    
     gg_proto <-
       ggplot2::ggplot(
         data = df_protocole,
-        aes(x = annee, fill = Protocole)
+        ggplot2::aes(x = annee, fill = Protocole)
       ) +
       ggplot2::geom_line(y = 0.5,group=0,alpha=0.5,lty=1,linewidth =0.2) +
       ggiraph::geom_point_interactive(
@@ -181,21 +179,21 @@ gg_temp_peuplement_local <- function(df,
       ) +
       ggplot2::xlab(NULL) +
       ggplot2::theme(
-        panel.background = element_rect(fill = 'grey95'),
-        strip.text = element_text(size = 11, color = "white", face = "bold"),
-        strip.background = element_rect(color = "black", fill = "grey30"),
+        panel.background = ggplot2::element_rect(fill = 'grey95'),
+        strip.text = ggplot2::element_text(size = 11, color = "white", face = "bold"),
+        strip.background = ggplot2::element_rect(color = "black", fill = "grey30"),
         legend.position = 'none',
-        legend.text = element_text(size = 9),
-        legend.title = element_text(size = 9),
-        axis.text.x = element_text(angle = 0, hjust = 0.5, size = 9),
-        axis.ticks = element_blank()
+        legend.text = ggplot2::element_text(size = 9),
+        legend.title = ggplot2::element_text(size = 9),
+        axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5, size = 9),
+        axis.ticks = ggplot2::element_blank()
       )
 
     plot_comb <- ((gg_peuplement +
                      ggplot2::theme(plot.margin = ggplot2::unit(c(0, 0, -0.5, 0), "pt"),
-                                    axis.text.x = element_blank(),
-                                    #axis.ticks.x = element_blank(),
-                                    axis.title.x = element_blank()) ) / gg_proto) +
+                                    axis.text.x = ggplot2::element_blank(),
+                                    #axis.ticks.x = ggplot2::element_blank(),
+                                    axis.title.x = ggplot2::element_blank()) ) / gg_proto) +
       patchwork::plot_layout(heights = c(5, 0.2))
 
     if (interactive) {
@@ -204,9 +202,9 @@ gg_temp_peuplement_local <- function(df,
 
       plot_comb <- ((gg_peuplement +
                        ggplot2::theme(legend.position = 'none',
-                                      plot.margin = unit(c(0, 0, -0.5, 0), "pt"),
+                                      plot.margin = ggplot2::unit(c(0, 0, -0.5, 0), "pt"),
                                       axis.text.x = ggplot2::element_blank(),
-                                      #axis.ticks.x = element_blank(),
+                                      #axis.ticks.x = ggplot2::element_blank(),
                                       axis.title.x = ggplot2::element_blank()) ) / gg_proto) +
         patchwork::plot_layout(heights = c(5, 0.2))
 
@@ -433,15 +431,83 @@ gg_temp_ipr_local <- function(df_ipr,
       ggplot2::coord_cartesian(ylim = c(0, max_axe_y))
   }
 
+  # if (interactif) {
+  #   ggiraph::girafe(
+  #     ggobj = plot_ipr_station,
+  #     width_svg = largeur,
+  #     height_svg = hauteur,
+  #     options = options
+  #   )
+  # } else {
+  #   plot_ipr_station
+  # }
+  
+  df_protocole <- df_ipr |>
+    dplyr::select(annee, pro_libelle) |>
+    unique() |>
+    dplyr::mutate(Protocole = stringr::str_wrap(pro_libelle, 15)) |>
+    dplyr::mutate(hover2 = paste0("<b>", annee, "</b><br>", pro_libelle))
+  
+  gg_proto <-
+    ggplot2::ggplot(
+      data = df_protocole,
+      ggplot2::aes(x = annee, fill = Protocole)
+    ) +
+    ggplot2::geom_line(y = 0.5,group=0,alpha=0.5,lty=1,linewidth =0.2) +
+    ggiraph::geom_point_interactive(
+      ggplot2::aes(x = annee, tooltip = hover2, group=annee, fill = Protocole, shape = Protocole),
+      y = 0.5,
+      alpha = 0.7,
+      size = 2
+    ) +
+    ggplot2::scale_shape_manual(values = c(22, 23, 24, 25)) +
+    ggplot2::scale_x_continuous(
+      position = 'top',
+      breaks = int_breaks,
+      limits = int_limits
+    ) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0))
+    ) +
+    ggplot2::xlab(NULL) +
+    ggplot2::theme(
+      panel.background = ggplot2::element_rect(fill = 'grey95'),
+      strip.text = ggplot2::element_text(size = 11, color = "white", face = "bold"),
+      strip.background = ggplot2::element_rect(color = "black", fill = "grey30"),
+      legend.position = 'none',
+      legend.text = ggplot2::element_text(size = 9),
+      legend.title = ggplot2::element_text(size = 9),
+      axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5, size = 9),
+      axis.ticks = ggplot2::element_blank()
+    )
+  
+  plot_comb <- ((plot_ipr_station +
+                   ggplot2::theme(plot.margin = ggplot2::unit(c(0, 0, -0.5, 0), "pt"),
+                                  axis.text.x = ggplot2::element_blank(),
+                                  #axis.ticks.x = ggplot2::element_blank(),
+                                  axis.title.x = ggplot2::element_blank()) ) / gg_proto) +
+    patchwork::plot_layout(heights = c(5, 0.2))
+  
   if (interactif) {
+    
+    gg_proto <- gg_proto + ggplot2::theme(legend.position = 'none')
+    
+    plot_comb <- ((plot_ipr_station +
+                     ggplot2::theme(legend.position = 'none',
+                                    plot.margin = ggplot2::unit(c(0, 0, -0.5, 0), "pt"),
+                                    axis.text.x = ggplot2::element_blank(),
+                                    #axis.ticks.x = ggplot2::element_blank(),
+                                    axis.title.x = ggplot2::element_blank()) ) / gg_proto) +
+      patchwork::plot_layout(heights = c(5, 0.2))
+    
     ggiraph::girafe(
-      ggobj = plot_ipr_station,
+      ggobj = plot_comb,
       width_svg = largeur,
       height_svg = hauteur,
       options = options
     )
   } else {
-    plot_ipr_station
+    plot_comb
   }
 }
 
