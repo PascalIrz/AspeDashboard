@@ -358,7 +358,14 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
                } else if (sel_var == "ipr") {
                    data_sta <- ipr |> 
                        dplyr::filter(pop_id == pop_id_sel) |> 
-                       dplyr::collect()
+                       dplyr::collect() |> 
+                      dplyr::left_join(
+                        pop_geo_df |> 
+                          dplyr::filter(pop_id == pop_id_sel) |> 
+                          dplyr::select(pop_id, sta_code_sandre) |> 
+                          dplyr::collect(),
+                        by = "pop_id"
+                      )
                    
                    if (nrow(data_sta) > 0) {
                        pop_libelle_sel <- data_sta$pop_libelle[1]

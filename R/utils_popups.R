@@ -9,6 +9,9 @@
 popup_peuplement <- function(df_captures, pop_id_sel, pop_libelle_sel) {
   if (nrow(df_captures) == 0) return(NULL)
   
+  df_captures <- df_captures |> 
+    dplyr::mutate(pop_libelle = paste0(pop_libelle, " (", sta_code_sandre, ")"))
+  
   # Largeur et hauteur de base (inch)
   largeur_base <- 3.7
   hauteur_base <- 4.6
@@ -76,6 +79,14 @@ popup_ipr <- function(df_ipr, pop_id_sel, pop_libelle_sel, classe_ipr) {
   # Largeur et hauteur de base (inch)
   largeur_base <- 3.7
   hauteur_base <- 4.6
+  
+  df_ipr <- df_ipr |> 
+    dplyr::mutate(pop_libelle = paste(pop_libelle, " (", sta_code_sandre, ")"))
+  
+  pop_libelle_sel = df_ipr |> 
+    dplyr::filter(pop_id == pop_id_sel) |> 
+    dplyr::distinct(pop_libelle) |> 
+    dplyr::pull(pop_libelle)
   
   p <- gg_temp_ipr_local(
     df_ipr = df_ipr,
