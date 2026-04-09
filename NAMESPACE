@@ -2,6 +2,7 @@
 
 export(ajouter_lien_inpn)
 export(ajuster_html)
+export(app_launcher)
 export(calculer_chiffres_cles)
 export(gg_gerer_seuils_classes_ipr_int_local)
 export(gg_temp_ab_esp)

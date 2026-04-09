@@ -1,0 +1,4 @@
+Name: Lancer Tableau de bord Aspe
+Description: Lance l'application Shiny
+Binding: app_launcher
+Interactive: true

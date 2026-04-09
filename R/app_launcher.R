@@ -1,0 +1,45 @@
+#' Title
+#'
+#' @return
+#' @export
+#' @importFrom rstudioapi getActiveProject()
+#' 
+#' @examples
+app_launcher <- function() {
+    AspeDashboard::run_app(
+        onStart = function() {
+            download.file("https://github.com/OFB-IdF/AspeDashboard/raw/refs/heads/main/inst/app/data/captures.parquet", destfile = "inst/app/data/captures.parquet", mode = "wb")
+            download.file("https://github.com/OFB-IdF/AspeDashboard/raw/refs/heads/main/inst/app/data/ipr.parquet", destfile = "inst/app/data/ipr.parquet", mode = "wb")
+            download.file("https://github.com/OFB-IdF/AspeDashboard/raw/refs/heads/main/inst/app/data/carte_operations.parquet", destfile = "inst/app/data/carte_operations.parquet", mode = "wb")
+            download.file("https://github.com/OFB-IdF/AspeDashboard/raw/refs/heads/main/inst/app/data/metriques.parquet", destfile = "inst/app/data/metriques.parquet", mode = "wb")
+            download.file("https://github.com/OFB-IdF/AspeDashboard/raw/refs/heads/main/inst/app/data/pop_geo.parquet", destfile = "inst/app/data/pop_geo.parquet", mode = "wb")
+            download.file("https://github.com/OFB-IdF/AspeDashboard/raw/refs/heads/main/inst/app/data/metadata.rda", destfile = "inst/app/data/metadata.rda", mode = "wb")
+            
+            captures <<- arrow::open_dataset("inst/app/data/captures.parquet")
+            ipr <<- arrow::open_dataset("inst/app/data/ipr.parquet")
+            carte_operations <<- arrow::open_dataset("inst/app/data/carte_operations.parquet")
+            metriques <<- arrow::open_dataset("inst/app/data/metriques.parquet")
+            pop_geo_df <<- arrow::open_dataset("inst/app/data/pop_geo.parquet")
+            
+            load("inst/app/data/metadata.rda", envir = .GlobalEnv)
+            
+            popups_base_dir <- file.path("inst", "app", "www", "popups")  
+            dir.create(popups_base_dir, showWarnings = FALSE, recursive = TRUE)
+            
+            onStop(
+                function() {
+                    popups_dir <- list.dirs(path = popups_base_dir, full.names = TRUE, recursive = FALSE)
+                    popups_dir <- popups_dir[!stringr::str_detect(string = popups_dir, pattern = file.path(popups_base_dir, "lib"))]
+                    purrr::walk(
+                        popups_dir,
+                        unlink, force = TRUE, recursive = TRUE
+                    )
+                    purrr::walk(
+                        list.files(path = popups_base_dir, pattern = ".html", full.names = TRUE),
+                        unlink, force = TRUE
+                    )
+                }
+            )
+        }
+    )
+}
