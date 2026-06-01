@@ -76,6 +76,7 @@ app_ui <- function(request) {
                 "Données & Traitements"
                 ),
               tags$iframe(
+                  id = "iframe_methodes",
                   src = "www/MethodesDonnees.html",
                   style = 'width:100%; height:calc(100vh - 200px); overflow:hidden; border:none'
               )
